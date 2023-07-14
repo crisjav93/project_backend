@@ -29,7 +29,9 @@ export class ProductManager {
     async addProduct(dates) {
         try {
             const products = await this.#getProducts();
-            
+            if (this.#valueProperties(body)) {
+                throw new Error("ERROR EN LOS DATOS INGRESADOS");
+            }
             if (this.#validateCode(dates.code, products)) {
                 throw new Error("Codigo Repetido , ingrese otro codigo");
             } else {
@@ -47,9 +49,12 @@ export class ProductManager {
 
     async getProductById(idProducto) {
         try {
+            if (!/^\d+$/.test(idProducto)) {
+                throw new Error("ID INVALIDO");
+            }
             const products = await this.#getProducts();
             const product = products.find(
-                (element) => element.id == idProducto
+                (element) => element.id === Number(idProducto)
             );
             if (!product) {
                 throw new Error("PRODUCTO NO EXISTE");
@@ -59,27 +64,39 @@ export class ProductManager {
             throw new Error(error.message);
         }
     }
-
-    async updateProduct(id, title, description, price, thumbnail, code, stock) {
-        try {
+    
+    #valueProperties(object) {
+        const datos = [
+            "title",
+            "descrition",
+            "price",
+            "thumbnail",
+            "code",
+            "stock",
+        ];
+        datos.forEach(element => {
+            if (!(element in object)) {
+            return true;
+        }
+        })
+        if (Object.keys(object).length !== 6) {
+            return true; // validamos que cuente con los datos requeridos.
+        }
+        return false;
+    };
+    
+    async updateProduct(id, body) {
+        try { 
             const products = await this.#getProducts();
-            const datos = [
-                id,
-                title,
-                description,
-                thumbnail,
-                code,
-                stock,
-                price,
-            ];
-            if (
-                datos.some((el) => el === "" || el === undefined || el === null)
-            ) {
-                throw new Error("INGRESE TODO LOS DATOS CORRECTOS ");
+            if (!/^\d+$/.test(id)) {
+                throw new Error("ID INVALIDO");
             }
-            const index = products.findIndex((element) => element.id === id);
+            if (this.#valueProperties(body)) {
+                throw new Error("ERROR EN LOS DATOS INGRESADOS");
+            }
+            const index = products.findIndex((element) => element.id === Number(id));
             if (index > 0) {
-                products[index] = new Product(...datos);
+                products[index] = {id, ...body};
                 await this.#writeFile(products);
                 return "MODIFICADO CORRECTAMENTE";
             } else {
@@ -92,15 +109,18 @@ export class ProductManager {
 
     async deleteProduct(idProducto) {
         try {
+            if (!/^\d+$/.test(idProducto)) {
+                throw new Error("ID INVALIDO");
+            }
             const products = await this.#getProducts(); // traer los archivos
             this.#controllerId(products, idProducto);
             const productsFilter = products.filter(
-                (elemnt) => elemnt.id !== idProducto
+                (elemnt) => elemnt.id !== Number(idProducto)
             );
-            if (products === productsFilter) {
+            if (JSON.stringify(products) === JSON.stringify(productsFilter)) {
                 throw new Error("ID NO EXISTE");
             } else {
-                await this.#writeFile(products);
+                await this.#writeFile(productsFilter);
                 return "SE BORRO CORRECTAMENTE";
             }
         } catch (error) {
@@ -131,8 +151,8 @@ export class ProductManager {
     }
 
     #controllerId(list, idProducto) {
-        if (list[list.length - 1].id === idProducto) {
-            this.#idNumer = idProducto;
+        if (list[list.length - 1].id === Number(idProducto)) {
+            this.#idNumer = Number(idProducto);
             this.#borreUltimo = true;
         }
     }
